@@ -9,9 +9,12 @@ CREATE TABLE ride_hailing.company (
     nombre          VARCHAR(120)   NOT NULL,
     nif             VARCHAR(20)    NOT NULL,
     email_contacto  VARCHAR(120)   NOT NULL,
+    -- Auditoría técnica
+    created_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id_company),
-    UNIQUE KEY uk_company_cif (cif)
+    UNIQUE KEY uk_company_nif (nif)
 ) ENGINE=InnoDB;
 
 -- Entidad Usuario
@@ -21,12 +24,11 @@ CREATE TABLE ride_hailing.usuario (
     telefono        VARCHAR(20)  NOT NULL,
     nombre          VARCHAR(120) NOT NULL,
     apellido        VARCHAR(120) NOT NULL,
-    fecha_alta      DATE         NOT NULL,
+    fecha_alta      DATE         NOT NULL DEFAULT (CURRENT_DATE),
     activo          BOOLEAN      NOT NULL DEFAULT TRUE,
-
-    -- Insertar campos de auditoria
-    -- created at
-    -- updated at 
+    -- Auditoría técnica
+    created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
     PRIMARY KEY (id_usuario),
     UNIQUE KEY uk_usuario_email (email),
@@ -50,8 +52,7 @@ CREATE TABLE ride_hailing.rider (
 -- Entidad Conductor (hijo de usuario)
 CREATE TABLE ride_hailing.conductor (
     id_usuario      BIGINT NOT NULL,
-    id_company      INT NOT NULL,
-    dni             VARCHAR(20) NOT NULL,
+    id_company      BIGINT NOT NULL,
     nif             VARCHAR(20) NOT NULL,
     licencia        VARCHAR(50) NOT NULL,
     valoracion      DECIMAL(3,2) NOT NULL DEFAULT 5.00,
@@ -71,3 +72,4 @@ CREATE TABLE ride_hailing.conductor (
         ON UPDATE CASCADE
         ON DELETE RESTRICT -- Eliminar una company no debe eliminar sus conductores   
 ) ENGINE=InnoDB;
+
