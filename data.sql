@@ -6,6 +6,7 @@ INSERT INTO company (nombre, nif, email_contacto) VALUES
 ('Madrid Mobility', 'B10000001', 'contacto@madridmobility.es'),
 ('Urban Cars',      'B10000002', 'info@urbancars.es');
 
+-- El orden importa porque después se reutilizan estos ids autogenerados.
 INSERT INTO usuario (tipo, email, telefono, nombre, apellido) VALUES
 ('rider',     'ana.rider@email.com',     '600000001', 'Ana',    'García'),
 ('rider',     'luis.rider@email.com',    '600000002', 'Luis',   'Martín'),
@@ -18,9 +19,11 @@ INSERT INTO usuario (tipo, email, telefono, nombre, apellido) VALUES
 ('conductor', 'jorge.driver@email.com',  '611000005', 'Jorge',  'Molina'),
 ('conductor', 'ines.driver@email.com',   '611000006', 'Inés',   'Ramos');
 
+-- Los cuatro primeros usuarios son riders y se referencian por su id generado.
 INSERT INTO rider (id_usuario, valoracion) VALUES
 (1, 4.80), (2, 4.60), (3, 4.90), (4, 4.70);
 
+-- Los conductores comparten tabla base con usuario; por eso arrancan en el id 5.
 INSERT INTO conductor (id_usuario, id_company, nif, licencia, disponible, valoracion) VALUES
 (5,  1, '11111111A', 'LIC-001', TRUE,  4.90),
 (6,  1, '22222222B', 'LIC-002', TRUE,  4.70),
@@ -58,11 +61,13 @@ INSERT INTO oferta (id_viaje, id_conductor, estado, precio_ofertado, fecha_envio
 (5, 5, 'pendiente', 18.40, '2026-04-20 13:01:00');
 
 -- Se aceptan tres ofertas usando el procedimiento con transacción y bloqueo.
+-- Cada llamada asigna el viaje, marca una oferta como aceptada y caduca el resto.
 CALL sp_aceptar_oferta(1);
 CALL sp_aceptar_oferta(4);
 CALL sp_aceptar_oferta(8);
 
 -- Se completan algunos viajes para tener métricas de ingresos, km y tiempo.
+-- Se dejan viajes en distintos estados para que el dashboard tenga variedad de casos.
 UPDATE viaje
 SET estado = 'finalizado',
     id_vehiculo = 1,
@@ -89,6 +94,7 @@ SET estado = 'en_curso',
     precio = 18.00
 WHERE id_viaje = 5;
 
+-- Solo se registran pagos para viajes ya finalizados; el viaje 5 sigue en curso.
 INSERT INTO pago (id_viaje, id_conductor, importe, metodo, estado, fecha_pago) VALUES
 (1, 1, 14.50, 'tarjeta', 'pagado', '2026-04-20 09:36:00'),
 (2, 2, 11.90, 'tarjeta', 'pagado', '2026-04-20 10:30:00');

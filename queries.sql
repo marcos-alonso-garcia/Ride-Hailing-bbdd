@@ -12,6 +12,7 @@ ORDER BY fecha_solicitud DESC;
 -- 2. Crear un nuevo rider dentro de una transacción.
 START TRANSACTION;
 
+-- Primero se crea el usuario base y luego su fila especializada en `rider`.
 INSERT INTO usuario (tipo, email, telefono, nombre, apellido)
 VALUES ('rider', 'nuevo.rider@email.com', '600000099', 'Nuevo', 'Rider');
 
@@ -23,6 +24,7 @@ COMMIT;
 -- 3. Crear un viaje nuevo y enviar ofertas a dos conductores.
 START TRANSACTION;
 
+-- El viaje nace sin conductor; la relación se completa al aceptar una oferta.
 INSERT INTO viaje (id_rider, origen_lat, origen_lon, destino_lat, destino_lon)
 VALUES (1, 40.421000, -3.701000, 40.430000, -3.710000);
 
@@ -54,6 +56,7 @@ ROLLBACK;
 -- 6. Finalizar un viaje y registrar el pago dentro de una transacción.
 START TRANSACTION;
 
+-- El filtro evita cerrar por error viajes que todavía no han empezado.
 UPDATE viaje
 SET estado = 'finalizado',
     fecha_fin = NOW(),
@@ -62,6 +65,7 @@ SET estado = 'finalizado',
 WHERE id_viaje = 5
   AND estado = 'en_curso';
 
+-- El pago se genera a partir del viaje ya actualizado para no duplicar datos manualmente.
 INSERT INTO pago (id_viaje, id_conductor, importe, metodo, estado, fecha_pago)
 SELECT id_viaje, id_conductor, precio, 'tarjeta', 'pagado', NOW()
 FROM viaje
@@ -78,6 +82,7 @@ WHERE id_viaje = 3
   AND estado = 'solicitado';
 
 -- 8. Rechazar una oferta pendiente.
+-- `fecha_decision` permite distinguir ofertas activas de ofertas ya resueltas.
 UPDATE oferta
 SET estado = 'rechazada', fecha_decision = NOW()
 WHERE id_oferta = 6
