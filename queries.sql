@@ -13,11 +13,11 @@ ORDER BY fecha_solicitud DESC;
 START TRANSACTION;
 
 -- Primero se crea el usuario base y luego su fila especializada en `rider`.
-INSERT INTO usuario (tipo, email, telefono, nombre, apellido)
-VALUES ('rider', 'nuevo.rider@email.com', '600000099', 'Nuevo', 'Rider');
+INSERT INTO usuario (email, telefono, nombre, apellido)
+VALUES ('nuevo.rider@email.com', '600000099', 'Nuevo', 'Rider');
 
-INSERT INTO rider (id_usuario, valoracion)
-VALUES (LAST_INSERT_ID(), 5.00);
+INSERT INTO rider (id_usuario, viajes_totales, valoracion)
+VALUES (LAST_INSERT_ID(), 0, 5.00);
 
 COMMIT;
 
@@ -90,7 +90,7 @@ WHERE id_oferta = 6
 
 -- 9. JOIN: conductores y vehículos activos.
 SELECT
-  c.id_conductor,
+  c.id_usuario AS id_conductor,
   u.nombre,
   u.apellido,
   co.nombre AS company,
@@ -100,7 +100,7 @@ SELECT
 FROM conductor c
 JOIN usuario u ON u.id_usuario = c.id_usuario
 JOIN company co ON co.id_company = c.id_company
-LEFT JOIN vehiculo v ON v.id_conductor = c.id_conductor AND v.activo = TRUE
+LEFT JOIN vehiculo v ON v.id_conductor = c.id_usuario AND v.activo = TRUE
 ORDER BY co.nombre, u.nombre;
 
 -- 10. Ver auditoría básica.
