@@ -77,7 +77,6 @@ CREATE TABLE ride_hailing.conductor (
 -- Vehículos de los conductores. Se usa 1:N para mantener el diseño sencillo.
 CREATE TABLE vehiculo (
   id_vehiculo  BIGINT      NOT NULL AUTO_INCREMENT,
-  -- Un conductor puede tener varios vehiculos historicos, pero solo uno activo a la vez en la operativa.
   id_conductor BIGINT      NOT NULL,
   matricula    VARCHAR(12) NOT NULL,
   marca        VARCHAR(50) NOT NULL,
@@ -89,42 +88,40 @@ CREATE TABLE vehiculo (
   UNIQUE KEY uk_vehiculo_matricula (matricula),
   KEY idx_vehiculo_conductor (id_conductor),
   CONSTRAINT fk_vehiculo_conductor
-    FOREIGN KEY (id_conductor) REFERENCES conductor(id_conductor)
+    FOREIGN KEY (id_conductor) REFERENCES ride_hailing.conductor(id_usuario)
     ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT chk_vehiculo_plazas CHECK (plazas BETWEEN 1 AND 8)
 ) ENGINE=InnoDB;
 
 -- Viajes solicitados por riders.
 CREATE TABLE viaje (
-  id_viaje        BIGINT NOT NULL AUTO_INCREMENT,
-  id_rider        BIGINT NOT NULL,
-  -- Permanecen a NULL hasta que alguna oferta es aceptada y se asigna el viaje.
-  id_conductor    BIGINT NULL,
-  id_vehiculo     BIGINT NULL,
-  origen_lat      DECIMAL(9,6) NOT NULL,
-  origen_lon      DECIMAL(9,6) NOT NULL,
-  destino_lat     DECIMAL(9,6) NOT NULL,
-  destino_lon     DECIMAL(9,6) NOT NULL,
-  estado          ENUM('solicitado','aceptado','en_curso','finalizado','cancelado') NOT NULL DEFAULT 'solicitado',
-  fecha_solicitud DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id_viaje         BIGINT NOT NULL AUTO_INCREMENT,
+  id_rider         BIGINT NOT NULL,
+  id_conductor     BIGINT NULL,
+  id_vehiculo      BIGINT NULL,
+  origen_lat       DECIMAL(9,6) NOT NULL,
+  origen_lon       DECIMAL(9,6) NOT NULL,
+  destino_lat      DECIMAL(9,6) NOT NULL,
+  destino_lon      DECIMAL(9,6) NOT NULL,
+  estado           ENUM('solicitado','aceptado','en_curso','finalizado','cancelado') NOT NULL DEFAULT 'solicitado',
+  fecha_solicitud  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   fecha_aceptacion DATETIME NULL,
-  fecha_inicio    DATETIME NULL,
-  fecha_fin       DATETIME NULL,
-  km              DECIMAL(8,2) NULL,
-  precio          DECIMAL(10,2) NULL,
-  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  fecha_inicio     DATETIME NULL,
+  fecha_fin        DATETIME NULL,
+  km               DECIMAL(8,2) NULL,
+  precio           DECIMAL(10,2) NULL,
+  created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   PRIMARY KEY (id_viaje),
   KEY idx_viaje_rider (id_rider),
   KEY idx_viaje_conductor (id_conductor),
-  -- Este indice cubre listados operativos del tipo "viajes por estado ordenados por fecha".
   KEY idx_viaje_estado_fecha (estado, fecha_solicitud),
   CONSTRAINT fk_viaje_rider
-    FOREIGN KEY (id_rider) REFERENCES rider(id_rider)
+    FOREIGN KEY (id_rider) REFERENCES ride_hailing.rider(id_usuario)
     ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_viaje_conductor
-    FOREIGN KEY (id_conductor) REFERENCES conductor(id_conductor)
+    FOREIGN KEY (id_conductor) REFERENCES ride_hailing.conductor(id_usuario)
     ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_viaje_vehiculo
     FOREIGN KEY (id_vehiculo) REFERENCES vehiculo(id_vehiculo)
@@ -135,17 +132,15 @@ CREATE TABLE viaje (
 
 -- Ofertas enviadas a conductores para un viaje.
 CREATE TABLE oferta (
-  id_oferta      BIGINT NOT NULL AUTO_INCREMENT,
-  id_viaje       BIGINT NOT NULL,
-  id_conductor   BIGINT NOT NULL,
-  estado         ENUM('pendiente','aceptada','rechazada','caducada') NOT NULL DEFAULT 'pendiente',
-  -- Se guarda el precio propuesto en la oferta para congelar la negociacion aunque luego cambien tarifas.
+  id_oferta       BIGINT NOT NULL AUTO_INCREMENT,
+  id_viaje        BIGINT NOT NULL,
+  id_conductor    BIGINT NOT NULL,
+  estado          ENUM('pendiente','aceptada','rechazada','caducada') NOT NULL DEFAULT 'pendiente',
   precio_ofertado DECIMAL(10,2) NOT NULL,
-  fecha_envio    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  fecha_decision DATETIME NULL,
+  fecha_envio     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  fecha_decision  DATETIME NULL,
 
   PRIMARY KEY (id_oferta),
-  -- Evita enviar dos ofertas simultaneas al mismo conductor para el mismo viaje.
   UNIQUE KEY uk_oferta_viaje_conductor (id_viaje, id_conductor),
   KEY idx_oferta_viaje_estado (id_viaje, estado),
   KEY idx_oferta_conductor_estado (id_conductor, estado),
@@ -153,21 +148,19 @@ CREATE TABLE oferta (
     FOREIGN KEY (id_viaje) REFERENCES viaje(id_viaje)
     ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_oferta_conductor
-    FOREIGN KEY (id_conductor) REFERENCES conductor(id_conductor)
+    FOREIGN KEY (id_conductor) REFERENCES ride_hailing.conductor(id_usuario)
     ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT chk_oferta_precio CHECK (precio_ofertado >= 0)
 ) ENGINE=InnoDB;
 
 -- Tabla que fuerza una única asignación por viaje.
 CREATE TABLE asignacion_viaje (
-  id_viaje      BIGINT NOT NULL,
-  id_oferta     BIGINT NOT NULL,
-  id_conductor  BIGINT NOT NULL,
-  fecha_asignacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  id_viaje          BIGINT NOT NULL,
+  id_oferta         BIGINT NOT NULL,
+  id_conductor      BIGINT NOT NULL,
+  fecha_asignacion  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-  -- La PK sobre el viaje fuerza que solo exista una asignacion ganadora por viaje.
   PRIMARY KEY (id_viaje),
-  -- Una oferta aceptada no puede reutilizarse para otro viaje ni para otra asignacion.
   UNIQUE KEY uk_asignacion_oferta (id_oferta),
   KEY idx_asignacion_conductor (id_conductor),
   CONSTRAINT fk_asignacion_viaje
@@ -177,29 +170,28 @@ CREATE TABLE asignacion_viaje (
     FOREIGN KEY (id_oferta) REFERENCES oferta(id_oferta)
     ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_asignacion_conductor
-    FOREIGN KEY (id_conductor) REFERENCES conductor(id_conductor)
+    FOREIGN KEY (id_conductor) REFERENCES ride_hailing.conductor(id_usuario)
     ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;
 
 -- Pagos de viajes.
 CREATE TABLE pago (
-  id_pago      BIGINT NOT NULL AUTO_INCREMENT,
-  id_viaje     BIGINT NOT NULL,
-  id_conductor BIGINT NOT NULL,
-  importe      DECIMAL(10,2) NOT NULL,
-  metodo       ENUM('tarjeta','efectivo') NOT NULL DEFAULT 'tarjeta',
-  estado       ENUM('pendiente','pagado','fallido') NOT NULL DEFAULT 'pendiente',
-  fecha_pago   DATETIME NULL,
+  id_pago       BIGINT NOT NULL AUTO_INCREMENT,
+  id_viaje      BIGINT NOT NULL,
+  id_conductor  BIGINT NOT NULL,
+  importe       DECIMAL(10,2) NOT NULL,
+  metodo        ENUM('tarjeta','efectivo') NOT NULL DEFAULT 'tarjeta',
+  estado        ENUM('pendiente','pagado','fallido') NOT NULL DEFAULT 'pendiente',
+  fecha_pago    DATETIME NULL,
 
   PRIMARY KEY (id_pago),
-  -- Modelo simplificado: se registra como maximo un pago por viaje.
   UNIQUE KEY uk_pago_viaje (id_viaje),
   KEY idx_pago_conductor (id_conductor),
   CONSTRAINT fk_pago_viaje
     FOREIGN KEY (id_viaje) REFERENCES viaje(id_viaje)
     ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT fk_pago_conductor
-    FOREIGN KEY (id_conductor) REFERENCES conductor(id_conductor)
+    FOREIGN KEY (id_conductor) REFERENCES ride_hailing.conductor(id_usuario)
     ON UPDATE CASCADE ON DELETE RESTRICT,
   CONSTRAINT chk_pago_importe CHECK (importe >= 0)
 ) ENGINE=InnoDB;
@@ -235,9 +227,9 @@ SELECT
   co.nombre AS company,
   ve.matricula
 FROM viaje v
-JOIN rider r ON r.id_rider = v.id_rider
+JOIN rider r ON r.id_usuario = v.id_rider
 JOIN usuario ur ON ur.id_usuario = r.id_usuario
-LEFT JOIN conductor c ON c.id_conductor = v.id_conductor
+LEFT JOIN conductor c ON c.id_usuario = v.id_conductor
 LEFT JOIN usuario uc ON uc.id_usuario = c.id_usuario
 LEFT JOIN company co ON co.id_company = c.id_company
 LEFT JOIN vehiculo ve ON ve.id_vehiculo = v.id_vehiculo;
@@ -245,7 +237,7 @@ LEFT JOIN vehiculo ve ON ve.id_vehiculo = v.id_vehiculo;
 -- Resume cuántas ofertas recibe cada conductor y cuántas termina aceptando.
 CREATE VIEW v_tasa_aceptacion_conductor AS
 SELECT
-  c.id_conductor,
+  c.id_usuario AS id_conductor,
   u.nombre,
   u.apellido,
   COUNT(o.id_oferta) AS ofertas_recibidas,
@@ -253,8 +245,8 @@ SELECT
   ROUND(100 * SUM(o.estado = 'aceptada') / NULLIF(COUNT(o.id_oferta), 0), 2) AS tasa_aceptacion
 FROM conductor c
 JOIN usuario u ON u.id_usuario = c.id_usuario
-LEFT JOIN oferta o ON o.id_conductor = c.id_conductor
-GROUP BY c.id_conductor, u.nombre, u.apellido;
+LEFT JOIN oferta o ON o.id_conductor = c.id_usuario
+GROUP BY c.id_usuario, u.nombre, u.apellido;
 
 -- Repite la métrica de aceptación anterior, pero agregada por compañía.
 CREATE VIEW v_tasa_aceptacion_company AS
@@ -266,13 +258,13 @@ SELECT
   ROUND(100 * SUM(o.estado = 'aceptada') / NULLIF(COUNT(o.id_oferta), 0), 2) AS tasa_aceptacion
 FROM company co
 JOIN conductor c ON c.id_company = co.id_company
-LEFT JOIN oferta o ON o.id_conductor = c.id_conductor
+LEFT JOIN oferta o ON o.id_conductor = c.id_usuario
 GROUP BY co.id_company, co.nombre;
 
 -- Calcula ingresos y eficiencia económica por distancia y por minuto para cada conductor.
 CREATE VIEW v_ingresos_conductor AS
 SELECT
-  c.id_conductor,
+  c.id_usuario AS id_conductor,
   u.nombre,
   u.apellido,
   COUNT(p.id_pago) AS viajes_pagados,
@@ -281,9 +273,9 @@ SELECT
   ROUND(COALESCE(SUM(p.importe) / NULLIF(SUM(TIMESTAMPDIFF(MINUTE, v.fecha_inicio, v.fecha_fin)), 0), 0), 2) AS euros_minuto
 FROM conductor c
 JOIN usuario u ON u.id_usuario = c.id_usuario
-LEFT JOIN pago p ON p.id_conductor = c.id_conductor AND p.estado = 'pagado'
+LEFT JOIN pago p ON p.id_conductor = c.id_usuario AND p.estado = 'pagado'
 LEFT JOIN viaje v ON v.id_viaje = p.id_viaje
-GROUP BY c.id_conductor, u.nombre, u.apellido;
+GROUP BY c.id_usuario, u.nombre, u.apellido;
 
 -- Agrega los ingresos de todos los conductores de una misma compañía.
 CREATE VIEW v_ingresos_company AS
@@ -296,7 +288,7 @@ SELECT
   ROUND(COALESCE(SUM(p.importe) / NULLIF(SUM(TIMESTAMPDIFF(MINUTE, v.fecha_inicio, v.fecha_fin)), 0), 0), 2) AS euros_minuto
 FROM company co
 JOIN conductor c ON c.id_company = co.id_company
-LEFT JOIN pago p ON p.id_conductor = c.id_conductor AND p.estado = 'pagado'
+LEFT JOIN pago p ON p.id_conductor = c.id_usuario AND p.estado = 'pagado'
 LEFT JOIN viaje v ON v.id_viaje = p.id_viaje
 GROUP BY co.id_company, co.nombre;
 
