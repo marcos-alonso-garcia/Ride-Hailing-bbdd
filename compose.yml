@@ -1,28 +1,64 @@
 services:
+  # Base de Datos principal
   mysql:
     image: mysql:8
     container_name: ridehailing-mysql
     restart: unless-stopped
-
     ports:
       - "3306:3306"
-
     environment:
       MYSQL_ROOT_PASSWORD: rootpass
       MYSQL_DATABASE: ride_hailing
       MYSQL_USER: app
       MYSQL_PASSWORD: apppass
-
+    command:
+      - "--slow-query-log=1"
+      - "--long-query-time=0.5"
+      - "--performance-schema=ON"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./mysql/conf.d:/etc/mysql/conf.d:ro
-      - ./sql:/docker-entrypoint-initdb.d:ro
-
+      # Scripts de inicialización automática (solo primer arranque con volumen vacío)
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./permissions.sql:/docker-entrypoint-initdb.d/02-permissions.sql:ro
+      - ./data.sql:/docker-entrypoint-initdb.d/03-data.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpass"]
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # Sensor de métricas
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.16.0
+    container_name: mysqld-exporter
+    environment:
+      DATA_SOURCE_NAME: "root:rootpass@(mysql:3306)/"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # Almacén de métricas
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - mysqld-exporter
+
+  # Panel visual
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: ridehailing-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+    depends_on:
+      - prometheus
 
 volumes:
   mysql_data:
