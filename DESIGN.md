@@ -4,7 +4,7 @@ erDiagram
     COMPANY {
         BIGINT id_company PK
         VARCHAR nombre
-        VARCHAR nif
+        VARCHAR nif UK
         VARCHAR email_contacto
         DATETIME created_at
         DATETIME updated_at
@@ -12,8 +12,8 @@ erDiagram
 
     USUARIO {
         BIGINT id_usuario PK
-        VARCHAR email
-        VARCHAR telefono
+        VARCHAR email UK
+        VARCHAR telefono UK
         VARCHAR nombre
         VARCHAR apellido
         DATE fecha_alta
@@ -40,7 +40,7 @@ erDiagram
     VEHICULO {
         BIGINT id_vehiculo PK
         BIGINT id_conductor FK
-        VARCHAR matricula
+        VARCHAR matricula UK
         VARCHAR marca
         VARCHAR modelo
         INT plazas
@@ -69,8 +69,8 @@ erDiagram
 
     OFERTA {
         BIGINT id_oferta PK
-        BIGINT id_viaje FK
-        BIGINT id_conductor FK
+        BIGINT id_viaje FK, UK
+        BIGINT id_conductor FK, UK
         ENUM estado
         DECIMAL precio_ofertado
         DATETIME fecha_envio
@@ -79,14 +79,14 @@ erDiagram
 
     ASIGNACION_VIAJE {
         BIGINT id_viaje PK, FK
-        BIGINT id_oferta FK
+        BIGINT id_oferta FK, UK
         BIGINT id_conductor FK
         DATETIME fecha_asignacion
     }
 
     PAGO {
         BIGINT id_pago PK
-        BIGINT id_viaje FK
+        BIGINT id_viaje FK, UK
         BIGINT id_conductor FK
         DECIMAL importe
         ENUM metodo
