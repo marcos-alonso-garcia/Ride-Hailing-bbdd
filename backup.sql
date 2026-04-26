@@ -1,45 +1,81 @@
--- Plan simple de backup y recuperación para ride_hailing.
--- Este archivo documenta los comandos principales. Se ejecutan desde terminal.
+-- ==========================================================
+-- PLAN DE BACKUP Y RECUPERACIÓN
+-- ==========================================================
 
--- Objetivo de recuperación:
--- RPO: 24 horas en el caso básico, porque se plantea un backup diario.
--- RTO: 2 horas, porque la restauración se puede hacer con el fichero .sql y Docker.
+-- Este archivo documenta la estrategia de backup/restore de la BD ride_hailing.
+-- La práctica usa un backup lógico con mysqldump por ser portable, sencillo
+-- de probar y suficiente para el volumen de datos del proyecto.
 
--- 1. Comprobar que el binlog está activo para poder explicar PITR.
-SHOW VARIABLES LIKE 'log_bin';
-SHOW VARIABLES LIKE 'binlog_format';
-SHOW VARIABLES LIKE 'binlog_expire_logs_seconds';
-SHOW BINARY LOGS;
+-- ==========================================================
+-- 1. BACKUP LÓGICO COMPLETO
+-- ==========================================================
 
--- 2. Backup lógico diario con mysqldump.
--- Comando desde la carpeta del proyecto:
--- docker exec ridehailing-mysql mysqldump \
---   -ubackup_user -pbackup_pass \
---   --databases ride_hailing \
---   --single-transaction \
---   --routines --triggers --events \
---   --set-gtid-purged=OFF \
+-- Ejecutar desde terminal (PowerShell/cmd/bash), no dentro del cliente MySQL:
+--
+-- docker exec ridehailing-mysql mysqldump ^
+--   -uroot -prootpass ^
+--   --databases ride_hailing ^
+--   --single-transaction ^
+--   --routines ^
+--   --triggers ^
+--   --set-gtid-purged=OFF ^
 --   > backup_ride_hailing.sql
+--
+-- Explicación:
+-- --single-transaction : snapshot consistente sin bloquear tablas InnoDB
+-- --routines           : incluye procedimientos almacenados
+-- --triggers           : incluye triggers
+-- --set-gtid-purged=OFF: evita problemas si no se usa replicación GTID
 
--- 3. Restauración del backup.
+-- ==========================================================
+-- 2. RESTORE DEL BACKUP
+-- ==========================================================
+
+-- Ejecutar desde terminal:
+--
+-- Get-Content .\backup_ride_hailing.sql | docker exec -i ridehailing-mysql mysql -uroot -prootpass
+--
+-- Alternativa en cmd:
+--
 -- docker exec -i ridehailing-mysql mysql -uroot -prootpass < backup_ride_hailing.sql
 
--- 4. Verificación posterior a la restauración.
+-- ==========================================================
+-- 3. VERIFICACIÓN POST-RESTORE
+-- ==========================================================
+
+-- Comprobaciones dentro de MySQL:
 USE ride_hailing;
 
-SELECT 'company' AS tabla, COUNT(*) AS filas FROM company
-UNION ALL SELECT 'usuario', COUNT(*) FROM usuario
-UNION ALL SELECT 'rider', COUNT(*) FROM rider
-UNION ALL SELECT 'conductor', COUNT(*) FROM conductor
-UNION ALL SELECT 'vehiculo', COUNT(*) FROM vehiculo
-UNION ALL SELECT 'viaje', COUNT(*) FROM viaje
-UNION ALL SELECT 'oferta', COUNT(*) FROM oferta
-UNION ALL SELECT 'pago', COUNT(*) FROM pago;
+SHOW TABLES;
+SHOW FULL TABLES WHERE Table_type = 'VIEW';
+SHOW PROCEDURE STATUS WHERE Db = 'ride_hailing';
+SHOW TRIGGERS FROM ride_hailing;
 
--- 5. Recuperación punto en el tiempo, ejemplo teórico.
--- Si hay un DELETE accidental a las 10:30, se restaura el backup y se aplican binlogs hasta las 10:29:59:
--- docker exec ridehailing-mysql mysqlbinlog \
---   --start-datetime="2026-04-20 00:00:00" \
---   --stop-datetime="2026-04-20 10:29:59" \
---   /var/lib/mysql/mysql-bin.000001 > cambios.sql
--- docker exec -i ridehailing-mysql mysql -uroot -prootpass < cambios.sql
+SELECT COUNT(*) AS total_usuarios FROM usuario;
+SELECT COUNT(*) AS total_viajes FROM viaje;
+SELECT COUNT(*) AS total_ofertas FROM oferta;
+SELECT COUNT(*) AS total_pagos FROM pago;
+
+-- ==========================================================
+-- 4. JUSTIFICACIÓN DE LA ESTRATEGIA
+-- ==========================================================
+
+-- RPO propuesto:
+--   Bajo para el contexto de la práctica. Se acepta perder como máximo
+--   los cambios desde el último backup manual o programado.
+--
+-- RTO propuesto:
+--   Bajo/medio. La recuperación consiste en recrear el contenedor si hace falta
+--   y restaurar el fichero SQL completo.
+--
+-- Motivo de elección:
+--   El backup lógico con mysqldump es suficiente para el tamaño del proyecto,
+--   fácil de probar, portable entre entornos y compatible con Docker.
+
+-- ==========================================================
+-- 5. MEJORA FUTURA
+-- ==========================================================
+
+-- Como mejora, podría activarse binlog y combinar backup completo + binlogs
+-- para recuperación punto en el tiempo (PITR), pero no es imprescindible
+-- para esta práctica.
