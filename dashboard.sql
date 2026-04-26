@@ -19,6 +19,16 @@ FROM viaje
 GROUP BY DATE(fecha_solicitud), HOUR(fecha_solicitud)
 ORDER BY dia, hora;
 
+-- Ofertas aceptadas por hora.
+SELECT DATE(fecha_decision) AS dia,
+       HOUR(fecha_decision) AS hora,
+       COUNT(*) AS ofertas_aceptadas
+FROM oferta
+WHERE estado = 'aceptada'
+  AND fecha_decision IS NOT NULL
+GROUP BY DATE(fecha_decision), HOUR(fecha_decision)
+ORDER BY dia, hora;
+
 -- Ofertas por estado.
 SELECT estado, COUNT(*) AS total_ofertas
 FROM oferta
@@ -42,17 +52,25 @@ SELECT
   ROUND(AVG(TIMESTAMPDIFF(MINUTE, fecha_inicio, fecha_fin)), 2) AS minutos_medios,
   ROUND(AVG(km), 2) AS km_medios
 FROM viaje
-WHERE estado = 'finalizado';
+WHERE estado = 'finalizado'
+  AND fecha_inicio IS NOT NULL
+  AND fecha_fin IS NOT NULL
+  AND km IS NOT NULL;
 
--- Ingresos por conductor.
+-- Ingresos y eficiencia económica por conductor (incluye euros/km y euros/minuto).
 SELECT *
 FROM v_ingresos_conductor
 ORDER BY ingresos DESC;
 
--- Ingresos por company.
+-- Ingresos y eficiencia económica por company (incluye euros/km y euros/minuto).
 SELECT *
 FROM v_ingresos_company
 ORDER BY ingresos DESC;
+
+-- Detalle operativo de viajes.
+SELECT *
+FROM v_viajes_detalle
+ORDER BY fecha_solicitud DESC;
 
 -- ==========================================================
 -- DASHBOARD DE BASE DE DATOS / MONITORIZACIÓN
