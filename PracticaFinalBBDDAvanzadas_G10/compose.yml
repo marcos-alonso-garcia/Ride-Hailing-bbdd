@@ -1,0 +1,76 @@
+services:
+  # Base de datos principal del proyecto.
+  mysql:
+    image: mysql:8
+    container_name: ridehailing-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      # Credenciales de arranque para la práctica. Nos sirven para inicializar la BD sin pasos extra.
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: ride_hailing
+      MYSQL_USER: app
+      MYSQL_PASSWORD: apppass
+    command:
+      # Dejamos activadas métricas y slow queries porque luego las usamos en monitorización y análisis.
+      - "--slow-query-log=1"
+      - "--long-query-time=0.5"
+      - "--performance-schema=ON"
+    volumes:
+      # Aquí se guardan los datos reales del contenedor para no perderlos al reiniciar.
+      - mysql_data:/var/lib/mysql
+      # Estos scripts solo se ejecutan en el primer arranque con volumen vacío.
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./permissions.sql:/docker-entrypoint-initdb.d/02-permissions.sql:ro
+      - ./data.sql:/docker-entrypoint-initdb.d/03-data.sql:ro
+    healthcheck:
+      # Esperamos a que MySQL responda antes de levantar servicios que dependan de él.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Exporter que saca métricas de MySQL para Prometheus.
+  mysqld-exporter:
+    image: prom/mysqld-exporter:v0.16.0
+    container_name: mysqld-exporter
+    command:
+      # El exporter se conecta al servicio mysql del compose, no al nombre del contenedor.
+      - "--mysqld.address=mysql:3306"
+      - "--mysqld.username=exporter"
+    environment:
+      # La contraseña va separada para no dejarla embebida en la query de conexión.
+      MYSQLD_EXPORTER_PASSWORD: "exporterpass"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # Prometheus recoge y guarda las métricas en el tiempo.
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      # Montamos el fichero de configuración para controlar qué targets scrapea.
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - mysqld-exporter
+
+  # Grafana nos sirve para enseñar la parte visual de la monitorización.
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: ridehailing-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      # Credenciales simples porque es un entorno local de práctica.
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+    depends_on:
+      - prometheus
+
+volumes:
+  # Volumen nombrado para persistir los datos de MySQL entre reinicios.
+  mysql_data:

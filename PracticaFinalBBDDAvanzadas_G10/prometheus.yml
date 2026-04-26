@@ -1,0 +1,9 @@
+global:
+  # Frecuencia razonable para la práctica: suficiente para ver cambios sin generar demasiado ruido.
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "mysqld"
+    static_configs:
+      # Prometheus consulta al exporter, y el exporter es quien habla con MySQL.
+      - targets: ["mysqld-exporter:9104"]

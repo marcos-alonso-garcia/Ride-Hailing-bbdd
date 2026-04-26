@@ -242,60 +242,19 @@ LEFT JOIN vehiculo ve ON ve.id_vehiculo = v.id_vehiculo;
 
 -- Vista para sacar la tasa de aceptación por conductor sin repetir la agregación cada vez.
 CREATE VIEW v_tasa_aceptacion_conductor AS
-SELECT
-  c.id_usuario AS id_conductor,
-  u.nombre,
-  u.apellido,
-  COUNT(o.id_oferta) AS ofertas_recibidas,
-  SUM(o.estado = 'aceptada') AS ofertas_aceptadas,
-  ROUND(100 * SUM(o.estado = 'aceptada') / NULLIF(COUNT(o.id_oferta), 0), 2) AS tasa_aceptacion
-FROM conductor c
-JOIN usuario u ON u.id_usuario = c.id_usuario
-LEFT JOIN oferta o ON o.id_conductor = c.id_usuario
-GROUP BY c.id_usuario, u.nombre, u.apellido;
+...
 
 -- Vista equivalente, pero agregada por company.
 CREATE VIEW v_tasa_aceptacion_company AS
-SELECT
-  co.id_company,
-  co.nombre AS company,
-  COUNT(o.id_oferta) AS ofertas_recibidas,
-  SUM(o.estado = 'aceptada') AS ofertas_aceptadas,
-  ROUND(100 * SUM(o.estado = 'aceptada') / NULLIF(COUNT(o.id_oferta), 0), 2) AS tasa_aceptacion
-FROM company co
-JOIN conductor c ON c.id_company = co.id_company
-LEFT JOIN oferta o ON o.id_conductor = c.id_usuario
-GROUP BY co.id_company, co.nombre;
+...
 
 -- Vista de ingresos por conductor, incluyendo euros/km y euros/minuto.
 CREATE VIEW v_ingresos_conductor AS
-SELECT
-  c.id_usuario AS id_conductor,
-  u.nombre,
-  u.apellido,
-  COUNT(p.id_pago) AS viajes_pagados,
-  COALESCE(SUM(p.importe), 0) AS ingresos,
-  ROUND(COALESCE(SUM(p.importe) / NULLIF(SUM(v.km), 0), 0), 2) AS euros_km,
-  ROUND(COALESCE(SUM(p.importe) / NULLIF(SUM(TIMESTAMPDIFF(MINUTE, v.fecha_inicio, v.fecha_fin)), 0), 0), 2) AS euros_minuto
-FROM conductor c
-JOIN usuario u ON u.id_usuario = c.id_usuario
-LEFT JOIN pago p ON p.id_conductor = c.id_usuario AND p.estado = 'pagado'
-LEFT JOIN viaje v ON v.id_viaje = p.id_viaje
-GROUP BY c.id_usuario, u.nombre, u.apellido;
+...
+
 -- Vista de ingresos agregados por compañía.
 CREATE VIEW v_ingresos_company AS
-SELECT
-  co.id_company,
-  co.nombre AS company,
-  COUNT(p.id_pago) AS viajes_pagados,
-  COALESCE(SUM(p.importe), 0) AS ingresos,
-  ROUND(COALESCE(SUM(p.importe) / NULLIF(SUM(v.km), 0), 0), 2) AS euros_km,
-  ROUND(COALESCE(SUM(p.importe) / NULLIF(SUM(TIMESTAMPDIFF(MINUTE, v.fecha_inicio, v.fecha_fin)), 0), 0), 2) AS euros_minuto
-FROM company co
-JOIN conductor c ON c.id_company = co.id_company
-LEFT JOIN pago p ON p.id_conductor = c.id_usuario AND p.estado = 'pagado'
-LEFT JOIN viaje v ON v.id_viaje = p.id_viaje
-GROUP BY co.id_company, co.nombre;
+...
 
 DELIMITER $$
 
