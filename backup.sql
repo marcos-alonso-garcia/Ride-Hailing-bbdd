@@ -2,14 +2,16 @@
 -- PLAN DE BACKUP Y RECUPERACIÓN
 -- ==========================================================
 
--- Este archivo documenta la estrategia de backup/restore de la BD ride_hailing.
--- La práctica usa un backup lógico con mysqldump por ser portable, sencillo
--- de probar y suficiente para el volumen de datos del proyecto.
+-- Este archivo no crea tablas ni datos: lo usamos para documentar
+-- cómo haríamos la copia y la restauración del sistema.
 
 -- ==========================================================
 -- 1. BACKUP LÓGICO COMPLETO
 -- ==========================================================
 
+-- Lo hacemos con mysqldump porque para esta práctica es suficiente,
+-- fácil de probar y además nos deja un fichero portable.
+--
 -- Ejecutar desde terminal (PowerShell/cmd/bash), no dentro del cliente MySQL:
 --
 -- docker exec ridehailing-mysql mysqldump ^
@@ -21,21 +23,21 @@
 --   --set-gtid-purged=OFF ^
 --   > backup_ride_hailing.sql
 --
--- Explicación:
--- --single-transaction : snapshot consistente sin bloquear tablas InnoDB
--- --routines           : incluye procedimientos almacenados
--- --triggers           : incluye triggers
--- --set-gtid-purged=OFF: evita problemas si no se usa replicación GTID
+-- Detalles importantes:
+-- --single-transaction  -> saca un snapshot consistente sin bloquear InnoDB
+-- --routines            -> incluye procedimientos almacenados
+-- --triggers            -> incluye triggers
+-- --set-gtid-purged=OFF -> evita problemas si no estamos usando GTID
 
 -- ==========================================================
 -- 2. RESTORE DEL BACKUP
 -- ==========================================================
 
--- Ejecutar desde terminal:
+-- En PowerShell:
 --
 -- Get-Content .\backup_ride_hailing.sql | docker exec -i ridehailing-mysql mysql -uroot -prootpass
 --
--- Alternativa en cmd:
+-- En cmd:
 --
 -- docker exec -i ridehailing-mysql mysql -uroot -prootpass < backup_ride_hailing.sql
 
@@ -43,7 +45,8 @@
 -- 3. VERIFICACIÓN POST-RESTORE
 -- ==========================================================
 
--- Comprobaciones dentro de MySQL:
+-- Después de restaurar, lo primero es comprobar que están los objetos
+-- más importantes y que los conteos básicos cuadran.
 USE ride_hailing;
 
 SHOW TABLES;
@@ -60,22 +63,14 @@ SELECT COUNT(*) AS total_pagos FROM pago;
 -- 4. JUSTIFICACIÓN DE LA ESTRATEGIA
 -- ==========================================================
 
--- RPO propuesto:
---   Bajo para el contexto de la práctica. Se acepta perder como máximo
---   los cambios desde el último backup manual o programado.
+-- RPO:
+-- Para esta práctica aceptamos perder como mucho los cambios
+-- desde la última copia manual o programada.
 --
--- RTO propuesto:
---   Bajo/medio. La recuperación consiste en recrear el contenedor si hace falta
---   y restaurar el fichero SQL completo.
+-- RTO:
+-- La recuperación es bastante rápida porque consiste en levantar
+-- el contenedor y cargar el fichero SQL completo.
 --
 -- Motivo de elección:
---   El backup lógico con mysqldump es suficiente para el tamaño del proyecto,
---   fácil de probar, portable entre entornos y compatible con Docker.
-
--- ==========================================================
--- 5. MEJORA FUTURA
--- ==========================================================
-
--- Como mejora, podría activarse binlog y combinar backup completo + binlogs
--- para recuperación punto en el tiempo (PITR), pero no es imprescindible
--- para esta práctica.
+-- Nos parecía la opción más razonable para un proyecto universitario:
+-- simple, portable y suficiente para el tamaño del sistema.

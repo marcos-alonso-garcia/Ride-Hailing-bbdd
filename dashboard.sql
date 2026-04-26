@@ -4,14 +4,14 @@ USE ride_hailing;
 -- DASHBOARD DE NEGOCIO
 -- ==========================================================
 
--- Viajes por estado.
+-- Reparto actual de viajes por estado.
 SELECT estado, COUNT(*) AS total_viajes
 FROM viaje
 GROUP BY estado
 ORDER BY total_viajes DESC;
 
--- Viajes por hora.
--- Sirve para detectar picos de demanda por franja horaria.
+-- Viajes solicitados por hora.
+-- Esto nos viene bien para detectar picos de demanda.
 SELECT DATE(fecha_solicitud) AS dia,
        HOUR(fecha_solicitud) AS hora,
        COUNT(*) AS viajes_solicitados
@@ -20,6 +20,7 @@ GROUP BY DATE(fecha_solicitud), HOUR(fecha_solicitud)
 ORDER BY dia, hora;
 
 -- Ofertas aceptadas por hora.
+-- Así vemos en qué momento se están cerrando más asignaciones.
 SELECT DATE(fecha_decision) AS dia,
        HOUR(fecha_decision) AS hora,
        COUNT(*) AS ofertas_aceptadas
@@ -29,14 +30,14 @@ WHERE estado = 'aceptada'
 GROUP BY DATE(fecha_decision), HOUR(fecha_decision)
 ORDER BY dia, hora;
 
--- Ofertas por estado.
+-- Reparto de ofertas por estado.
 SELECT estado, COUNT(*) AS total_ofertas
 FROM oferta
 GROUP BY estado
 ORDER BY total_ofertas DESC;
 
 -- Tasa de aceptación por conductor.
--- La agregación vive en la vista; aquí solo se priorizan los mejores ratios.
+-- La lógica está en la vista para no repetir la agregación cada vez.
 SELECT *
 FROM v_tasa_aceptacion_conductor
 ORDER BY tasa_aceptacion DESC;
@@ -46,8 +47,8 @@ SELECT *
 FROM v_tasa_aceptacion_company
 ORDER BY tasa_aceptacion DESC;
 
--- Tiempo medio y kilometraje medio de viajes finalizados.
--- Se filtran viajes cerrados para no mezclar trayectos todavía abiertos.
+-- Tiempo medio y km medios de viajes finalizados.
+-- Filtramos viajes cerrados para no mezclar casos todavía abiertos.
 SELECT
   ROUND(AVG(TIMESTAMPDIFF(MINUTE, fecha_inicio, fecha_fin)), 2) AS minutos_medios,
   ROUND(AVG(km), 2) AS km_medios
@@ -57,17 +58,19 @@ WHERE estado = 'finalizado'
   AND fecha_fin IS NOT NULL
   AND km IS NOT NULL;
 
--- Ingresos y eficiencia económica por conductor (incluye euros/km y euros/minuto).
+-- Ingresos por conductor.
+-- La vista ya incluye euros/km y euros/minuto, que son métricas pedidas en el enunciado.
 SELECT *
 FROM v_ingresos_conductor
 ORDER BY ingresos DESC;
 
--- Ingresos y eficiencia económica por company (incluye euros/km y euros/minuto).
+-- Ingresos por company.
 SELECT *
 FROM v_ingresos_company
 ORDER BY ingresos DESC;
 
--- Detalle operativo de viajes.
+-- Vista operativa de viajes con nombres y matrícula.
+-- Nos sirve tanto para demo como para revisión rápida del sistema.
 SELECT *
 FROM v_viajes_detalle
 ORDER BY fecha_solicitud DESC;
@@ -76,20 +79,20 @@ ORDER BY fecha_solicitud DESC;
 -- DASHBOARD DE BASE DE DATOS / MONITORIZACIÓN
 -- ==========================================================
 
--- Conexiones actuales.
+-- Conexiones activas ahora mismo.
 SHOW STATUS LIKE 'Threads_connected';
 
--- Máximo de conexiones usadas.
+-- Pico histórico de conexiones utilizadas.
 SHOW STATUS LIKE 'Max_used_connections';
 
--- Límite de conexiones configurado.
+-- Límite configurado de conexiones.
 SHOW VARIABLES LIKE 'max_connections';
 
 -- Consultas lentas registradas.
 SHOW STATUS LIKE 'Slow_queries';
 
--- Tamaño de tablas e índices en MB.
--- `information_schema.tables` permite vigilar crecimiento sin consultar tabla por tabla.
+-- Tamaño de tablas e índices.
+-- Esto ayuda a vigilar crecimiento sin revisar tabla por tabla a mano.
 SELECT
   table_name,
   ROUND(data_length / 1024 / 1024, 2) AS datos_mb,
@@ -98,8 +101,8 @@ FROM information_schema.tables
 WHERE table_schema = 'ride_hailing'
 ORDER BY datos_mb + indices_mb DESC;
 
--- Índices creados en el esquema.
--- Ayuda a revisar rápidamente qué columnas están optimizadas para joins o filtros.
+-- Resumen de índices creados.
+-- Nos viene bien para revisar rápido qué joins y filtros están optimizados.
 SELECT
   table_name,
   index_name,
