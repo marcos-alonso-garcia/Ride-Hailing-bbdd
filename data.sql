@@ -145,8 +145,7 @@ INSERT INTO usuario (email, telefono, nombre, apellido) VALUES
 ('rider.m035@mail.com', '6001000035', 'Aurora', 'Núñez'),
 ('rider.m036@mail.com', '6001000036', 'Guillermo', 'Ochoa'),
 ('rider.m037@mail.com', '6001000037', 'Marisol', 'Parra'),
-('rider.m038@mail.com', '6001000038', '
-', 'Ponce'),
+('rider.m038@mail.com', '6001000038', 'Simón', 'Ponce'),
 ('rider.m039@mail.com', '6001000039', 'Dolores', 'Santiago'),
 ('rider.m040@mail.com', '6001000040', 'Cristóbal', 'Suárez'),
 ('rider.m041@mail.com', '6001000041', 'Amparo', 'Tello'),
